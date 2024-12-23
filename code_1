@@ -1,0 +1,268 @@
+
+import time
+import telebot
+import datetime
+import threading
+import random
+import logging
+import mysql.connector
+import pandas as pd
+import os
+import datetime
+import json
+import sys
+import keyword as kwd
+from telebot import types
+pd.set_option('display.max_rows', None)
+pd.set_option('display.width', None)
+
+bot = telebot.TeleBot("7576357777:AAHlVrlIP1ftvPBIzZ8xA5A816jNO_FeCoM") # создание объекта бота и передача его в конструктор класса telebot.TeleBot()
+
+# Настройки подключения к базе данных
+db_config = {
+    'user': 'j1007852',
+    'password': '3Q58?HRxRS*T',
+    'host': 'myadmin.jino.ru', 
+    'database': 'j1007852_13423'
+}
+
+
+
+# Функция для подключения к базе данных
+def get_db_connection():
+    try:
+        return mysql.connector.connect(**db_config)
+    except mysql.connector.Error as err:
+        print(f"Ошибка подключения к базе данных: {err}")
+        return None
+
+
+# Словарь для хранения истории переписки
+chat_history = {}
+
+
+commands = [
+    "Можем начать общение заново - /start",
+    "Не люблю хвастаться, но я могу много чего. Нажми /help , чтобы узнать ;) ",
+    "Хочешь пофлиртовать со мной? - нажми /flirt",
+    "Я ещё могу помочь создать персонажа - /generate",
+    "/game - угадай имя, которое я придумал для твоего персонажа",
+    "/save - не хочу тебя забывать, давай сохраним историю переписки ;)"
+]
+
+
+flirt = ["Как только увидел тебя, стал заикаться. Думаешь, это надолго?",
+    "Твои родичи часом не террористы? А я-то думаю: «Откуда у них такая адская машина?».",
+    "Ты – песня, потому что заела в моей голове.",
+    "Ты случайно не лягушка-квакушка из болота? Тогда почему меня к тебе так притягивает, как Ивана-царевича.",
+    "Прости я тебя не понимаю, – не разговариваю на внеземном.",
+    "Я здесь потерял свое сердечко, поможешь найти?",
+    "Когда в моей жизни появилась ты, она стала сказкой.",
+    "Будь ты конфеткой, я бы тебя съел.",
+    "Можно сойти с ума, на Земле сейчас 7, 678, 175, 660 человек, а нужна мне только ты.",
+    "Сегодня я услышал звонок, мне сказали, что с небес упал самый красивый ангелочек, это не ты?",
+    "Слушай, мне кажется, ты болото, иначе почему меня так затянуло.",
+    "Если ты озеро, то я утопленник.",
+    "Я вызываю полицию, ты нарушаешь закон о красоте.",
+    "Слушай, может поищешь ингалятор, а то у меня перехватило дух после твоего последнего видео.",
+    "Давай поставим наши зубные щетки в один стакан.",
+    "я не вор, но тебя бы похитил.",
+    "Ты гипнотизер, ведь от тебя я потерял голову.",
+    "Ты точно энергос, заставляешь биться мое сердце быстрее.",
+    "Я стараюсь не моргать, чтобы чаще видеть твой профиль в Тик Ток."]
+
+# Функция для обработки команды /start
+@bot.message_handler(commands=['start'])
+def start(message):
+    chat_id = message.chat.id
+    username = message.from_user.username
+
+    # Подключаемся к базе данных
+    conn = get_db_connection()
+    if conn is None:
+        bot.send_message(chat_id, 'Ошибка подключения к базе данных.')
+        return
+
+    cursor = conn.cursor()
+
+    try:
+        # Вставляем данные о пользователе в таблицу
+        cursor.execute(
+            "INSERT INTO 3tgbotusers (chat_id, username) VALUES (%s, %s) ON DUPLICATE KEY UPDATE username=%s",
+            (chat_id, username, username)
+        )
+        conn.commit()
+
+        # Генерируем случайное приветствие
+        random_greeting = "Привет! Ни на что не намекаю, но... " + random.choice(flirt) + " Не хочешь немного пообщаться?"
+        bot.send_message(chat_id, random_greeting)
+
+    except mysql.connector.Error as err:
+        bot.send_message(chat_id, f'Ошибка при добавлении пользователя: {err}')
+    except Exception as e:
+        bot.send_message(chat_id, f'Произошла ошибка: {e}')
+    finally:
+        # Закрываем соединение
+        cursor.close()
+        conn.close()
+
+
+
+
+@bot.message_handler(commands=['flirt'])
+def start_message(message):
+    random_flirt = random.choice(flirt)
+    bot.reply_to(message, random_flirt)
+
+
+
+# Функция для отправки случайного сообщения из файла
+def send_random_message(chat_id):
+    while True:
+        try:
+            with open('C:/Users/Полина/Desktop/TgBot/Flirt.txt', "r", encoding="utf-8") as file:
+                messages = file.readlines()
+            random_message = random.choice(messages).strip()
+            bot.send_message(chat_id, random_message)
+        except Exception as e:
+            print(f"Ошибка при отправке сообщения: {e}")
+        time.sleep(600)  # Отправляем сообщение каждые 600 секунд
+
+
+
+
+def send_reminders(chat_id):
+    first_rem = "10:00"
+    second_rem = "14:00"
+    end_rem = "22:08"
+    while True:
+        now = datetime.datetime.now()
+        if now == first_rem or now == second_rem or now == end_rem:
+            bot.send_message(chat_id, "И чуть не забыл! Возвращайся скорее... Я скучаю...")
+            time.sleep(61)
+        time.sleep(1)
+
+    
+
+# Обработчик команды "/generate"
+@bot.message_handler(commands=['generate'])
+def generate_and_send(message):
+  character_sheet = generate_character_sheet()
+  bot.reply_to(message, character_sheet)
+
+# Функция для получения случайного двузначного числа
+def get_random_number():
+  return random.randint(10, 99)
+
+# Функция для генерации анкеты
+def generate_character_sheet():
+  # Загрузка данных из файла
+  with open('Numbers.txt', 'r') as f:
+    numbers = [int(line.strip()) for line in f]
+
+  # Генерация перса
+  character_sheet = f"""Имя: Попробуй угадать ;) /game
+Характеристики:
+Сила: {numbers[0]}
+Телосложение: {numbers[1]}
+Ловкость: {numbers[2]}
+Интеллект: {numbers[3]}
+Мудрость: {numbers[4]}
+Харизма: {numbers[5]}"""
+
+  return character_sheet
+
+
+@bot.message_handler(commands=['game'])
+def start_game(message):
+    global game_started, current_name
+    game_started = True
+    current_name = ""
+    bot.reply_to(message, "Дай-ка подумать...")
+
+    # Выбираем случайное имя из файла
+    try:
+        with open("C:/Users/Полина/Desktop/TgBot/Names.txt", "r", encoding="utf-8") as file:
+            names = file.readlines()
+        current_name = random.choice(names).strip()
+        bot.reply_to(message, "Я загадал имя. Попробуйте угадать!")
+    except FileNotFoundError:
+        bot.reply_to(message, "Ошибка! Файл с именами не найден. Пожалуйста, создайте файл 'names.txt' и добавьте в него имена.")
+        game_started = False
+
+
+@bot.message_handler(func=lambda message: game_started)
+def handle_game_message(message):
+    global game_started, current_name
+    if message.text.lower() == current_name.lower():
+        game_started = False
+        bot.reply_to(message, f"Правильно! Это было {current_name}. Игра окончена!")
+    elif message.text.lower() == "мне надоело":
+        game_started = False
+        bot.reply_to(message, f"Хорошо, игра окончена. Я загадал {current_name}.")
+    else:
+        bot.reply_to(message, "Неа")
+
+
+
+
+
+def save_message(chat_id, message):
+    if chat_id not in chat_history:
+        chat_history[chat_id] = []
+    chat_history[chat_id].append(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {message}")
+
+@bot.message_handler(commands=['save'])
+def send_history(message):
+    chat_id = message.chat.id
+    today = datetime.datetime.now().strftime('%Y-%m-%d')
+    file_name = f'history_{chat_id}_{today}.txt'
+
+    # Сохраняем историю переписки в файл
+    with open(file_name, 'w', encoding='utf-8') as f:
+        if chat_id in chat_history:
+            for msg in chat_history[chat_id]:
+                f.write(msg + '\n')
+        else:
+            f.write('История переписки пуста.\n')
+
+    # Отправляем файл пользователю
+    with open(file_name, 'rb') as f:
+        bot.send_document(chat_id, f, caption='Ваша история переписки за сегодня.')
+
+@bot.message_handler(func=lambda message: True)  # Обрабатываем все сообщения
+def any_message(message):
+    if message.text.lower() != "/start" and message.text.lower() != "/generate" and message.text.lower() != "flirt":
+        bot.reply_to(message, "\nЗнаешь, я не так уж и безнадёжен:\n" + "\n".join(commands))
+
+
+
+@bot.message_handler(func=lambda message: True)
+def handle_message(message):
+    chat_id = message.chat.id
+    save_message(chat_id, message.text)
+    bot.reply_to(message, f'Вы написали: {message.text}')
+
+
+
+
+@bot.message_handler(commands=['help'])
+def help_message(message):
+    bot.reply_to(message, "\nДоступные команды:\n" + "\n".join(commands))
+
+
+
+# Запускаем поток для отправки случайных сообщений
+thread = threading.Thread(target=send_random_message, args=(bot.get_updates()[0].message.chat.id,))
+thread.start()
+
+thread = threading.Thread(target=send_reminders, args=(bot.get_updates()[0].message.chat.id,))
+thread.start()
+
+game_started = False
+current_name = ""
+
+
+
+
+bot.polling(none_stop=True)
