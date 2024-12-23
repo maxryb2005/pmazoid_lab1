@@ -23,7 +23,7 @@ db_config = {
     'user': 'j1007852',
     'password': '3Q58?HRxRS*T',
     'host': 'myadmin.jino.ru', 
-    'database': 'j1007852_13423'
+    'database': 'j1007852_13723'
 }
 
 
